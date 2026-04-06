@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kyiv Brute-Force Progress Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --ok: #10b981;
+      --warn: #ef4444;
+      --pending: #3b82f6;
+      --border: #374151;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .map-wrap {
+      min-height: 100vh;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: rgba(17, 24, 39, 0.75);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      flex-wrap: wrap;
+    }
+
+    button, input[type="file"]::file-selector-button {
+      background: #2563eb;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #374151;
+    }
+
+    label {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .stat {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .ok { color: var(--ok); font-weight: 700; }
+
+    .warn { color: var(--warn); font-weight: 700; }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .progress {
+      height: 10px;
+      border-radius: 999px;
+      background: #1f2937;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress > div {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #22c55e);
+      width: 0;
+      transition: width 200ms ease;
+    }
+
+    #status {
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.35);
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      #map {
+        height: 70vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Processed Tiles Map</h1>
+
+      <div class="card">
+        <div class="row">
+          <button id="loadDefaultBtn">Load <code>./progress.json</code></button>
+          <button id="loadMatchesBtn" class="secondary">Load <code>./matches.tsv</code></button>
+          <button id="fitBtn" class="secondary">Fit to BBox</button>
+        </div>
+        <div class="row">
+          <input id="fileInput" type="file" accept="application/json,.json" />
+          <input id="matchesFileInput" type="file" accept=".tsv,text/tab-separated-values,text/plain" />
+        </div>
+        <div class="row">
+          <label><input id="autoRefresh" type="checkbox" checked /> Auto-refresh</label>
+          <label>Every
+            <input id="refreshEvery" type="number" min="1" step="1" value="5" style="width:64px; margin-left:6px;" />
+            sec
+          </label>
+        </div>
+        <div id="status"></div>
+        <div id="matchesStatus" class="muted" style="font-size:12px; min-height:18px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <label><input id="showPending" type="checkbox" /> Show pending tiles</label>
+        </div>
+        <div class="row">
+          <label><input id="showProcessed" type="checkbox" checked /> Show processed tiles</label>
+        </div>
+        <div class="row">
+          <label><input id="showCodes" type="checkbox" checked /> Show code locations</label>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="swatch" style="background: rgba(16,185,129,0.5)"></span>Processed</div>
+          <div class="legend-item"><span class="swatch" style="background: rgba(59,130,246,0.15)"></span>Pending</div>
+          <div class="legend-item"><span class="swatch" style="background: rgba(249,115,22,0.85)"></span>Code location</div>
+        </div>
+        <div class="hint">Code locations are loaded from <code>./matches.tsv</code>.</div>
+      </div>
+
+      <div class="card">
+        <div class="stat"><span class="muted">Completed squares</span><span id="completedSquares">-</span></div>
+        <div class="stat"><span class="muted">Pending squares</span><span id="pendingSquares">-</span></div>
+        <div class="stat"><span class="muted">Solved indices</span><span id="solvedIndices">-</span></div>
+        <div class="stat"><span class="muted">Pending indices</span><span id="pendingIndices">-</span></div>
+        <div class="stat"><span class="muted">Code locations</span><span id="codeLocations">-</span></div>
+        <div class="stat"><span class="muted">Updated at</span><span id="updatedAt">-</span></div>
+        <div class="progress"><div id="progressBar"></div></div>
+        <div id="progressText" class="mono muted" style="margin-top:8px;">-</div>
+      </div>
+
+      <div class="card mono" id="configBox">No config loaded</div>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const state = {
+      map: null,
+      bboxLayer: null,
+      processedLayer: null,
+      pendingLayer: null,
+      codeLayer: null,
+      squares: [],
+      matches: [],
+      progress: null,
+      config: null,
+      hasFitted: false,
+      autoRefreshTimer: null,
+    };
+
+    const els = {
+      status: document.getElementById('status'),
+      loadDefaultBtn: document.getElementById('loadDefaultBtn'),
+      loadMatchesBtn: document.getElementById('loadMatchesBtn'),
+      fitBtn: document.getElementById('fitBtn'),
+      fileInput: document.getElementById('fileInput'),
+      matchesFileInput: document.getElementById('matchesFileInput'),
+      autoRefresh: document.getElementById('autoRefresh'),
+      refreshEvery: document.getElementById('refreshEvery'),
+      showPending: document.getElementById('showPending'),
+      showProcessed: document.getElementById('showProcessed'),
+      showCodes: document.getElementById('showCodes'),
+      completedSquares: document.getElementById('completedSquares'),
+      pendingSquares: document.getElementById('pendingSquares'),
+      solvedIndices: document.getElementById('solvedIndices'),
+      pendingIndices: document.getElementById('pendingIndices'),
+      codeLocations: document.getElementById('codeLocations'),
+      updatedAt: document.getElementById('updatedAt'),
+      progressBar: document.getElementById('progressBar'),
+      progressText: document.getElementById('progressText'),
+      configBox: document.getElementById('configBox'),
+      matchesStatus: document.getElementById('matchesStatus'),
+    };
+
+    function setStatus(msg, isError = false) {
+      els.status.textContent = msg;
+      els.status.className = isError ? 'warn' : 'muted';
+    }
+
+    function setMatchesStatus(msg, isError = false) {
+      els.matchesStatus.textContent = msg;
+      els.matchesStatus.className = isError ? 'warn' : 'muted';
+    }
+
+    function initMap() {
+      state.map = L.map('map', { preferCanvas: true, zoomControl: true });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(state.map);
+
+      state.bboxLayer = L.layerGroup().addTo(state.map);
+      state.processedLayer = L.layerGroup().addTo(state.map);
+      state.pendingLayer = L.layerGroup();
+      state.codeLayer = L.layerGroup().addTo(state.map);
+
+      state.map.setView([50.4501, 30.5234], 11);
+    }
+
+    function parseConfigKey(configKey) {
+      const parts = String(configKey || '').split('|');
+      const out = {};
+
+      for (const part of parts) {
+        const eq = part.indexOf('=');
+        if (eq === -1) {
+          out.version = part;
+        } else {
+          const key = part.slice(0, eq);
+          const value = part.slice(eq + 1);
+          out[key] = value;
+        }
+      }
+
+      if (!out.bbox || !out.steps || !out.squares) {
+        throw new Error('configKey does not contain bbox/steps/squares');
+      }
+
+      const bbox = out.bbox.split(',').map(Number);
+      const steps = out.steps.split(',').map(Number);
+      if (bbox.length !== 4 || steps.length !== 2 || bbox.some(Number.isNaN) || steps.some(Number.isNaN)) {
+        throw new Error('Invalid bbox/steps in configKey');
+      }
+
+      return {
+        raw: configKey,
+        version: out.version || 'v1',
+        app: out.app || '',
+        idx: out.idx || '',
+        order: out.order || 'unknown',
+        salt: out.salt || '',
+        squareCount: Number(out.squares),
+        latMin: bbox[0],
+        latMax: bbox[1],
+        lonMin: bbox[2],
+        lonMax: bbox[3],
+        latStep: steps[0],
+        lonStep: steps[1],
+      };
+    }
+
+    function calcIndexCount(minVal, maxVal, step) {
+      return Math.floor(((maxVal - minVal) / step) + 1e-10) + 1;
+    }
+
+    function chooseSquareGrid(squareCount, latCount, lonCount) {
+      let bestRows = 1;
+      let bestCols = squareCount;
+      let bestOvershoot = Number.POSITIVE_INFINITY;
+      let bestShape = Number.POSITIVE_INFINITY;
+
+      for (let rows = 1; rows <= squareCount; rows += 1) {
+        const cols = Math.ceil(squareCount / rows);
+        const overshoot = rows * cols - squareCount;
+        const latPerCell = latCount / rows;
+        const lonPerCell = lonCount / cols;
+        const shapePenalty = Math.abs(latPerCell - lonPerCell);
+
+        if (overshoot < bestOvershoot || (overshoot === bestOvershoot && shapePenalty < bestShape)) {
+          bestRows = rows;
+          bestCols = cols;
+          bestOvershoot = overshoot;
+          bestShape = shapePenalty;
+        }
+      }
+
+      return { rows: bestRows, cols: bestCols };
+    }
+
+    function buildSquares(latCount, lonCount, squareCount) {
+      const grid = chooseSquareGrid(squareCount, latCount, lonCount);
+      const squares = [];
+      let id = 0;
+
+      for (let row = 0; row < grid.rows; row += 1) {
+        const latStart = Math.floor((row * latCount) / grid.rows);
+        const latEnd = Math.floor(((row + 1) * latCount) / grid.rows);
+        if (latStart >= latEnd) continue;
+
+        for (let col = 0; col < grid.cols; col += 1) {
+          const lonStart = Math.floor((col * lonCount) / grid.cols);
+          const lonEnd = Math.floor(((col + 1) * lonCount) / grid.cols);
+          if (lonStart >= lonEnd) continue;
+
+          squares.push({ id, row, col, latStart, latEnd, lonStart, lonEnd });
+          id += 1;
+        }
+      }
+
+      return { squares, grid };
+    }
+
+    function clamp(v, min, max) {
+      return Math.min(max, Math.max(min, v));
+    }
+
+    function indexEdge(min, max, step, count, idx) {
+      if (idx <= 0) return min;
+      if (idx >= count) return max;
+      return clamp(min + idx * step, min, max);
+    }
+
+    function squareBounds(square, cfg, latCount, lonCount) {
+      const south = indexEdge(cfg.latMin, cfg.latMax, cfg.latStep, latCount, square.latStart);
+      const north = indexEdge(cfg.latMin, cfg.latMax, cfg.latStep, latCount, square.latEnd);
+      const west = indexEdge(cfg.lonMin, cfg.lonMax, cfg.lonStep, lonCount, square.lonStart);
+      const east = indexEdge(cfg.lonMin, cfg.lonMax, cfg.lonStep, lonCount, square.lonEnd);
+      return [[south, west], [north, east]];
+    }
+
+    function matchesForSquare(square, cfg, latCount, lonCount) {
+      const bounds = squareBounds(square, cfg, latCount, lonCount);
+      const south = bounds[0][0];
+      const west = bounds[0][1];
+      const north = bounds[1][0];
+      const east = bounds[1][1];
+
+      return state.matches.filter((m) => (
+        m.lat >= south && m.lat <= north && m.lon >= west && m.lon <= east
+      ));
+    }
+
+    function squarePopupHtml(square, isCompleted, squareMatches, bounds) {
+      const status = isCompleted ? 'processed' : 'pending';
+      const [south, west] = bounds[0];
+      const [north, east] = bounds[1];
+      const lines = [
+        `<b>Square:</b> ${square.id} (${status})<br/>`,
+        `<b>Grid:</b> row=${square.row}, col=${square.col}<br/>`,
+        `<b>Bounds:</b> lat ${south.toFixed(6)}..${north.toFixed(6)}, lon ${west.toFixed(6)}..${east.toFixed(6)}<br/>`,
+        `<b>Code locations:</b> ${squareMatches.length}`,
+      ];
+
+      if (squareMatches.length > 0) {
+        const items = squareMatches
+          .map((m) => `index=${escapeHtml(m.index)}, ${m.lat.toFixed(6)}, ${m.lon.toFixed(6)}, out=${escapeHtml(m.output || '-')}`)
+          .join('<br/>');
+        lines.push('<br/><br/>' + items);
+      }
+
+      return lines.join('');
+    }
+
+    function fitToBBox(cfg) {
+      const bounds = L.latLngBounds([[cfg.latMin, cfg.lonMin], [cfg.latMax, cfg.lonMax]]);
+      state.map.fitBounds(bounds.pad(0.05));
+    }
+
+    function clearLayers() {
+      state.bboxLayer.clearLayers();
+      state.processedLayer.clearLayers();
+      state.pendingLayer.clearLayers();
+      state.codeLayer.clearLayers();
+    }
+
+    function drawBBox(cfg) {
+      const rect = L.rectangle([[cfg.latMin, cfg.lonMin], [cfg.latMax, cfg.lonMax]], {
+        color: '#f59e0b',
+        weight: 2,
+        fillOpacity: 0.0,
+      });
+      rect.bindTooltip('Search BBox', { sticky: true });
+      rect.addTo(state.bboxLayer);
+    }
+
+    function renderTiles() {
+      if (!state.progress || !state.config) return;
+
+      clearLayers();
+      drawBBox(state.config);
+
+      const completed = new Set(state.progress.completedSquareIDs || []);
+      const latCount = calcIndexCount(state.config.latMin, state.config.latMax, state.config.latStep);
+      const lonCount = calcIndexCount(state.config.lonMin, state.config.lonMax, state.config.lonStep);
+
+      for (const sq of state.squares) {
+        const isCompleted = completed.has(sq.id);
+        const shouldDraw = (isCompleted && els.showProcessed.checked) || (!isCompleted && els.showPending.checked);
+        if (!shouldDraw) continue;
+
+        const bounds = squareBounds(sq, state.config, latCount, lonCount);
+        const squareMatches = matchesForSquare(sq, state.config, latCount, lonCount);
+        const rect = L.rectangle(bounds, {
+          color: isCompleted ? '#10b981' : '#3b82f6',
+          weight: isCompleted ? 0.8 : 0.5,
+          fillColor: isCompleted ? '#10b981' : '#3b82f6',
+          fillOpacity: isCompleted ? 0.45 : 0.10,
+          interactive: true,
+        });
+        rect.bindPopup(squarePopupHtml(sq, isCompleted, squareMatches, bounds));
+
+        if (isCompleted) {
+          rect.addTo(state.processedLayer);
+        } else {
+          rect.addTo(state.pendingLayer);
+        }
+      }
+
+      if (els.showPending.checked) {
+        if (!state.map.hasLayer(state.pendingLayer)) {
+          state.pendingLayer.addTo(state.map);
+        }
+      } else if (state.map.hasLayer(state.pendingLayer)) {
+        state.map.removeLayer(state.pendingLayer);
+      }
+
+      if (els.showProcessed.checked) {
+        if (!state.map.hasLayer(state.processedLayer)) {
+          state.processedLayer.addTo(state.map);
+        }
+      } else if (state.map.hasLayer(state.processedLayer)) {
+        state.map.removeLayer(state.processedLayer);
+      }
+
+      renderCodes();
+    }
+
+    function updateStats(progress, cfg, squaresLen) {
+      const completedCount = (progress.completedSquareIDs || []).length;
+      const totalSquares = progress.totalSquares || squaresLen || 0;
+      const pendingCount = Math.max(0, totalSquares - completedCount);
+      const solvedCount = (progress.solvedIndices || []).length;
+      const pendingIndicesCount = (progress.pendingIndices || []).length;
+
+      const pct = totalSquares > 0 ? (completedCount / totalSquares) * 100 : 0;
+
+      els.completedSquares.textContent = `${completedCount} / ${totalSquares}`;
+      els.pendingSquares.textContent = `${pendingCount}`;
+      els.solvedIndices.textContent = `${solvedCount}`;
+      els.pendingIndices.textContent = `${pendingIndicesCount}`;
+      els.codeLocations.textContent = `${state.matches.length}`;
+      els.updatedAt.textContent = progress.updatedAt || '-';
+      els.progressBar.style.width = `${pct.toFixed(2)}%`;
+      els.progressText.textContent = `${pct.toFixed(2)}% complete`;
+
+      const latCount = calcIndexCount(cfg.latMin, cfg.latMax, cfg.latStep);
+      const lonCount = calcIndexCount(cfg.lonMin, cfg.lonMax, cfg.lonStep);
+      els.configBox.textContent = [
+        `app: ${cfg.app || '-'}`,
+        `idx: ${cfg.idx || '-'}`,
+        `order: ${cfg.order || '-'}`,
+        `salt: ${cfg.salt || '-'}`,
+        `bbox: lat ${cfg.latMin}..${cfg.latMax}, lon ${cfg.lonMin}..${cfg.lonMax}`,
+        `steps: lat ${cfg.latStep}, lon ${cfg.lonStep}`,
+        `grid points: lat_count=${latCount}, lon_count=${lonCount}`,
+        `generated squares: ${squaresLen}`,
+      ].join('\n');
+
+      if (totalSquares !== squaresLen) {
+        setStatus(`Warning: progress totalSquares=${totalSquares}, reconstructed=${squaresLen}`, true);
+      } else {
+        setStatus(`Loaded ${completedCount}/${totalSquares} squares.`);
+      }
+    }
+
+    function applyProgress(progress) {
+      if (!progress || typeof progress !== 'object') {
+        throw new Error('Invalid progress JSON');
+      }
+
+      if (!progress.configKey) {
+        throw new Error('Missing configKey in progress JSON');
+      }
+
+      const cfg = parseConfigKey(progress.configKey);
+      if (!Number.isFinite(cfg.squareCount) || cfg.squareCount <= 0) {
+        throw new Error('Invalid square count in configKey');
+      }
+
+      const latCount = calcIndexCount(cfg.latMin, cfg.latMax, cfg.latStep);
+      const lonCount = calcIndexCount(cfg.lonMin, cfg.lonMax, cfg.lonStep);
+      if (latCount <= 0 || lonCount <= 0) {
+        throw new Error('Invalid bbox/steps: empty candidate grid');
+      }
+
+      const { squares } = buildSquares(latCount, lonCount, cfg.squareCount);
+
+      state.progress = progress;
+      state.config = cfg;
+      state.squares = squares;
+
+      updateStats(progress, cfg, squares.length);
+      renderTiles();
+      if (!state.hasFitted) {
+        fitToBBox(cfg);
+        state.hasFitted = true;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function parseMatchesTSV(tsvText) {
+      const lines = String(tsvText || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      if (lines.length === 0) return [];
+
+      const firstLineCols = lines[0].split('\t').map((h) => h.trim());
+      const hasHeader = firstLineCols.some((h) => ['index', 'lat', 'lon', 'salt_order', 'password', 'output'].includes(h.toLowerCase()));
+      const header = hasHeader
+        ? firstLineCols.map((h) => h.toLowerCase())
+        : ['index', 'lat', 'lon', 'salt_order', 'password', 'output'];
+      const colIndex = (name, fallback) => {
+        const idx = header.indexOf(name);
+        return idx === -1 ? fallback : idx;
+      };
+      const idxIndex = colIndex('index', 0);
+      const latIndex = colIndex('lat', 1);
+      const lonIndex = colIndex('lon', 2);
+      const orderIndex = colIndex('salt_order', 3);
+      const passwordIndex = colIndex('password', 4);
+      const outputIndex = colIndex('output', 5);
+
+      const unique = new Map();
+      const startLine = hasHeader ? 1 : 0;
+      for (let i = startLine; i < lines.length; i += 1) {
+        const cols = lines[i].split('\t');
+        const lat = Number(cols[latIndex] || '');
+        const lon = Number(cols[lonIndex] || '');
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const indexRaw = cols[idxIndex] || '';
+        const indexNum = Number(indexRaw);
+        const match = {
+          index: Number.isFinite(indexNum) ? indexNum : indexRaw,
+          lat,
+          lon,
+          saltOrder: cols[orderIndex] || '',
+          password: cols[passwordIndex] || '',
+          output: cols[outputIndex] || '',
+        };
+
+        const key = `${match.index}|${match.lat}|${match.lon}|${match.output}|${match.saltOrder}`;
+        unique.set(key, match);
+      }
+
+      return Array.from(unique.values());
+    }
+
+    function renderCodes() {
+      state.codeLayer.clearLayers();
+
+      if (!els.showCodes.checked) {
+        if (state.map.hasLayer(state.codeLayer)) {
+          state.map.removeLayer(state.codeLayer);
+        }
+        return;
+      }
+
+      for (const match of state.matches) {
+        const marker = L.circleMarker([match.lat, match.lon], {
+          color: '#f97316',
+          weight: 2,
+          radius: 6,
+          fillColor: '#fb923c',
+          fillOpacity: 0.85,
+        });
+
+        const title = `index=${escapeHtml(match.index)} ${escapeHtml(match.output || '')}`.trim();
+        marker.bindTooltip(title, { sticky: true, direction: 'top' });
+        marker.bindPopup(codePopupHtml(match), { maxWidth: 320 });
+        marker.addTo(state.codeLayer);
+      }
+
+      if (!state.map.hasLayer(state.codeLayer)) {
+        state.codeLayer.addTo(state.map);
+      }
+    }
+
+    function overlayCandidates(match) {
+      const list = [];
+      const rawOutput = String(match.output || '').trim();
+      if (rawOutput) {
+        list.push(`./overlays/${encodeURIComponent(rawOutput)}`);
+      }
+
+      const idxNum = Number(match.index);
+      if (Number.isFinite(idxNum)) {
+        list.push(`./overlays/${idxNum}.png`);
+        list.push(`./overlays/${String(idxNum).padStart(2, '0')}.png`);
+      }
+
+      return Array.from(new Set(list));
+    }
+
+    function codePopupHtml(match) {
+      const candidates = overlayCandidates(match);
+      const src0 = candidates[0] || '';
+      const src1 = candidates[1] || '';
+      const src2 = candidates[2] || '';
+
+      const details = [
+        `<b>Index:</b> ${escapeHtml(match.index)}<br/>`,
+        `<b>Lat/Lon:</b> ${match.lat.toFixed(6)}, ${match.lon.toFixed(6)}<br/>`,
+        `<b>Salt order:</b> ${escapeHtml(match.saltOrder || '-')}<br/>`,
+        `<b>Output:</b> ${escapeHtml(match.output || '-')}<br/>`,
+        `<b>Password:</b> ${escapeHtml(match.password || '-')}`,
+      ].join('');
+
+      if (!src0) {
+        return `${details}<div style="margin-top:8px; color:#9ca3af;">No overlay filename available.</div>`;
+      }
+
+      const imageHtml = [
+        '<div style="margin-top:8px;">',
+        `<img src="${src0}" data-fallback1="${src1}" data-fallback2="${src2}"`,
+        ' style="display:block; width:100%; max-width:280px; height:auto; border:1px solid #374151; border-radius:8px;"',
+        ' onerror="if(this.dataset.fallback1){this.src=this.dataset.fallback1;this.dataset.fallback1=' + "''" + ';return;}if(this.dataset.fallback2){this.src=this.dataset.fallback2;this.dataset.fallback2=' + "''" + ';return;}this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';"',
+        ' />',
+        '<div style="display:none; color:#9ca3af; font-size:12px; margin-top:4px;">Overlay image not found in ./overlays.</div>',
+        '</div>',
+      ].join('');
+
+      return details + imageHtml;
+    }
+
+    function applyMatches(matches) {
+      state.matches = Array.isArray(matches) ? matches : [];
+      renderCodes();
+      if (state.progress && state.config) {
+        updateStats(state.progress, state.config, state.squares.length);
+      } else {
+        els.codeLocations.textContent = `${state.matches.length}`;
+      }
+    }
+
+    async function loadDefaultMatches(options = {}) {
+      const silent = Boolean(options.silent);
+      try {
+        const res = await fetch('./matches.tsv', { cache: 'no-store' });
+        if (!res.ok) {
+          if (!silent) {
+            setStatus(`Could not load matches.tsv (HTTP ${res.status}).`, true);
+          }
+          setMatchesStatus(`Could not load ./matches.tsv (HTTP ${res.status}).`, true);
+          applyMatches([]);
+          return;
+        }
+        const tsv = await res.text();
+        applyMatches(parseMatchesTSV(tsv));
+        setMatchesStatus(`Loaded ${state.matches.length} code location(s) from ./matches.tsv.`);
+      } catch (err) {
+        if (!silent) {
+          setStatus(`Could not load matches.tsv: ${err.message}`, true);
+        }
+        setMatchesStatus(`Could not load ./matches.tsv: ${err.message}`, true);
+        applyMatches([]);
+      }
+    }
+
+    async function loadDefaultProgress(options = {}) {
+      const silent = Boolean(options.silent);
+      try {
+        if (!silent) {
+          setStatus('Loading ./progress.json ...');
+        }
+        const res = await fetch('./progress.json', { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} while loading progress.json`);
+        }
+        const json = await res.json();
+        applyProgress(json);
+        await loadDefaultMatches({ silent: true });
+      } catch (err) {
+        if (!silent) {
+          setStatus(`${err.message}. If opened via file://, run a local server in this folder (python3 -m http.server).`, true);
+        }
+      }
+    }
+
+    function loadFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const json = JSON.parse(String(reader.result || '{}'));
+          state.hasFitted = false;
+          applyProgress(json);
+          await loadDefaultMatches({ silent: true });
+        } catch (err) {
+          setStatus(`Failed to read selected file: ${err.message}`, true);
+        }
+      };
+      reader.onerror = () => {
+        setStatus('Failed to read selected file.', true);
+      };
+      reader.readAsText(file);
+    }
+
+    function loadMatchesFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const tsv = String(reader.result || '');
+          applyMatches(parseMatchesTSV(tsv));
+          setMatchesStatus(`Loaded ${state.matches.length} code location(s) from selected file.`);
+        } catch (err) {
+          setMatchesStatus(`Failed to read selected matches file: ${err.message}`, true);
+        }
+      };
+      reader.onerror = () => {
+        setMatchesStatus('Failed to read selected matches file.', true);
+      };
+      reader.readAsText(file);
+    }
+
+    function updateAutoRefresh() {
+      if (state.autoRefreshTimer) {
+        clearInterval(state.autoRefreshTimer);
+        state.autoRefreshTimer = null;
+      }
+      if (!els.autoRefresh.checked) {
+        return;
+      }
+      const seconds = Math.max(1, Number(els.refreshEvery.value) || 5);
+      state.autoRefreshTimer = setInterval(() => {
+        loadDefaultProgress({ silent: true });
+      }, seconds * 1000);
+    }
+
+    els.loadDefaultBtn.addEventListener('click', loadDefaultProgress);
+    els.loadMatchesBtn.addEventListener('click', () => loadDefaultMatches({ silent: false }));
+    els.fitBtn.addEventListener('click', () => {
+      if (state.config) fitToBBox(state.config);
+    });
+    els.fileInput.addEventListener('change', (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (file) loadFromFile(file);
+    });
+    els.matchesFileInput.addEventListener('change', (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (file) loadMatchesFromFile(file);
+    });
+    els.showPending.addEventListener('change', renderTiles);
+    els.showProcessed.addEventListener('change', renderTiles);
+    els.showCodes.addEventListener('change', renderCodes);
+    els.autoRefresh.addEventListener('change', updateAutoRefresh);
+    els.refreshEvery.addEventListener('change', updateAutoRefresh);
+
+    initMap();
+    updateAutoRefresh();
+    loadDefaultProgress();
+  </script>
+</body>
+</html>
