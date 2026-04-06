@@ -184,7 +184,7 @@
       <div class="card">
         <div class="row">
           <button id="loadDefaultBtn">Load <code>./progress.json</code></button>
-          <button id="loadMatchesBtn" class="secondary">Load <code>./matches.tsv</code></button>
+          <button id="loadMatchesBtn" class="secondary">Load embedded matches</button>
           <button id="fitBtn" class="secondary">Fit to BBox</button>
         </div>
         <div class="row">
@@ -217,7 +217,7 @@
           <div class="legend-item"><span class="swatch" style="background: rgba(59,130,246,0.15)"></span>Pending</div>
           <div class="legend-item"><span class="swatch" style="background: rgba(249,115,22,0.85)"></span>Code location</div>
         </div>
-        <div class="hint">Code locations are loaded from <code>./matches.tsv</code>.</div>
+        <div class="hint">Code locations are embedded in this published build.</div>
       </div>
 
       <div class="card">
@@ -254,6 +254,8 @@
       hasFitted: false,
       autoRefreshTimer: null,
     };
+
+    const EMBEDDED_MATCHES = [{"index":1,"lat":50.45465,"lon":30.5113,"saltOrder":"little","output":"01.png"},{"index":2,"lat":50.4479,"lon":30.5127,"saltOrder":"little","output":"02.png"},{"index":3,"lat":50.4479,"lon":30.5127,"saltOrder":"little","output":"03.png"},{"index":4,"lat":50.4461,"lon":30.5183,"saltOrder":"little","output":"04.png"},{"index":5,"lat":50.4461,"lon":30.5183,"saltOrder":"little","output":"05.png"},{"index":6,"lat":50.46275,"lon":30.4812,"saltOrder":"little","output":"06.png"},{"index":7,"lat":50.4623,"lon":30.4812,"saltOrder":"little","output":"07.png"},{"index":8,"lat":50.4623,"lon":30.4812,"saltOrder":"little","output":"08.png"},{"index":9,"lat":50.4047,"lon":30.4868,"saltOrder":"little","output":"09.png"},{"index":10,"lat":50.39165,"lon":30.4966,"saltOrder":"little","output":"10.png"},{"index":11,"lat":50.45645,"lon":30.4987,"saltOrder":"little","output":"11.png"},{"index":12,"lat":50.456,"lon":30.4987,"saltOrder":"little","output":"12.png"},{"index":13,"lat":50.4398,"lon":30.5155,"saltOrder":"little","output":"13.png"},{"index":14,"lat":50.4155,"lon":30.5078,"saltOrder":"little","output":"14.png"},{"index":15,"lat":50.41325,"lon":30.5155,"saltOrder":"little","output":"15.png"},{"index":16,"lat":50.3246,"lon":30.5505,"saltOrder":"little","output":"16.png"},{"index":17,"lat":50.3246,"lon":30.5505,"saltOrder":"little","output":"17.png"},{"index":18,"lat":50.40425,"lon":30.5106,"saltOrder":"little","output":"18.png"},{"index":19,"lat":50.45285,"lon":30.526,"saltOrder":"little","output":"19.png"},{"index":20,"lat":50.4335,"lon":30.4896,"saltOrder":"little","output":"20.png"},{"index":21,"lat":50.4335,"lon":30.4896,"saltOrder":"little","output":"21.png"},{"index":22,"lat":50.4551,"lon":30.4,"saltOrder":"little","output":"22.png"},{"index":23,"lat":50.4542,"lon":30.4,"saltOrder":"little","output":"23.png"},{"index":24,"lat":50.46005,"lon":30.365,"saltOrder":"little","output":"24.png"},{"index":25,"lat":50.5082,"lon":30.5988,"saltOrder":"little","output":"25.png"},{"index":26,"lat":50.45465,"lon":30.5232,"saltOrder":"little","output":"26.png"},{"index":27,"lat":50.38265,"lon":30.6884,"saltOrder":"little","output":"27.png"},{"index":28,"lat":50.4893,"lon":30.4917,"saltOrder":"little","output":"28.png"},{"index":29,"lat":50.4731,"lon":30.4385,"saltOrder":"little","output":"29.png"},{"index":30,"lat":50.4668,"lon":30.5162,"saltOrder":"little","output":"30.png"},{"index":31,"lat":50.4668,"lon":30.5162,"saltOrder":"little","output":"31.png"},{"index":32,"lat":50.39255,"lon":30.4336,"saltOrder":"little","output":"32.png"},{"index":33,"lat":50.5208,"lon":30.5925,"saltOrder":"little","output":"33.png"},{"index":34,"lat":50.357,"lon":30.6863,"saltOrder":"little","output":"34.png"},{"index":35,"lat":50.357,"lon":30.6863,"saltOrder":"little","output":"35.png"},{"index":36,"lat":50.41955,"lon":30.6345,"saltOrder":"little","output":"36.png"},{"index":37,"lat":50.41955,"lon":30.6345,"saltOrder":"little","output":"37.png"},{"index":38,"lat":50.45645,"lon":30.3818,"saltOrder":"little","output":"38.png"},{"index":39,"lat":50.36825,"lon":30.4938,"saltOrder":"little","output":"39.png"},{"index":40,"lat":50.47535,"lon":30.4728,"saltOrder":"little","output":"40.png"},{"index":41,"lat":50.48255,"lon":30.4651,"saltOrder":"little","output":"41.png"},{"index":42,"lat":50.43755,"lon":30.4931,"saltOrder":"little","output":"42.png"},{"index":43,"lat":50.38265,"lon":30.4581,"saltOrder":"little","output":"43.png"},{"index":44,"lat":50.4416,"lon":30.5197,"saltOrder":"little","output":"44.png"},{"index":45,"lat":50.4416,"lon":30.5197,"saltOrder":"little","output":"45.png"},{"index":46,"lat":50.48705,"lon":30.4602,"saltOrder":"little","output":"46.png"},{"index":47,"lat":50.4236,"lon":30.4462,"saltOrder":"little","output":"47.png"},{"index":48,"lat":50.41865,"lon":30.4861,"saltOrder":"little","output":"48.png"},{"index":49,"lat":50.43485,"lon":30.5155,"saltOrder":"little","output":"49.png"},{"index":50,"lat":50.4101,"lon":30.4042,"saltOrder":"little","output":"50.png"},{"index":51,"lat":50.4047,"lon":30.6548,"saltOrder":"little","output":"51.png"},{"index":52,"lat":50.4317,"lon":30.5169,"saltOrder":"little","output":"52.png"},{"index":53,"lat":50.4317,"lon":30.5169,"saltOrder":"little","output":"53.png"},{"index":54,"lat":50.46545,"lon":30.3328,"saltOrder":"little","output":"54.png"},{"index":55,"lat":50.474,"lon":30.4819,"saltOrder":"little","output":"55.png"},{"index":56,"lat":50.43755,"lon":30.4931,"saltOrder":"little","output":"56.png"},{"index":57,"lat":50.44115,"lon":30.3692,"saltOrder":"little","output":"57.png"},{"index":58,"lat":50.4398,"lon":30.3692,"saltOrder":"little","output":"58.png"},{"index":59,"lat":50.3831,"lon":30.4903,"saltOrder":"little","output":"59.png"},{"index":60,"lat":50.45555,"lon":30.6289,"saltOrder":"little","output":"60.png"},{"index":61,"lat":50.4623,"lon":30.589,"saltOrder":"little","output":"61.png"},{"index":62,"lat":50.42675,"lon":30.4588,"saltOrder":"little","output":"62.png"},{"index":63,"lat":50.42675,"lon":30.4588,"saltOrder":"little","output":"63.png"},{"index":64,"lat":50.4551,"lon":30.5113,"saltOrder":"little","output":"64.png"},{"index":65,"lat":50.4551,"lon":30.5113,"saltOrder":"little","output":"65.png"},{"index":66,"lat":50.4542,"lon":30.5113,"saltOrder":"little","output":"66.png"},{"index":67,"lat":50.4542,"lon":30.5113,"saltOrder":"little","output":"67.png"},{"index":68,"lat":50.4542,"lon":30.5113,"saltOrder":"little","output":"68.png"},{"index":69,"lat":50.4542,"lon":30.5113,"saltOrder":"little","output":"69.png"},{"index":70,"lat":50.45285,"lon":30.5092,"saltOrder":"little","output":"70.png"},{"index":71,"lat":50.45285,"lon":30.5099,"saltOrder":"little","output":"71.png"},{"index":72,"lat":50.45195,"lon":30.5085,"saltOrder":"little","output":"72.png"},{"index":73,"lat":50.45195,"lon":30.5085,"saltOrder":"little","output":"73.png"},{"index":74,"lat":50.4524,"lon":30.5085,"saltOrder":"little","output":"74.png"},{"index":75,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"75.png"},{"index":76,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"76.png"},{"index":77,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"77.png"},{"index":78,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"78.png"},{"index":79,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"79.png"},{"index":80,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"80.png"},{"index":81,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"81.png"},{"index":82,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"82.png"},{"index":83,"lat":50.45015,"lon":30.5029,"saltOrder":"little","output":"83.png"},{"index":84,"lat":50.4488,"lon":30.4987,"saltOrder":"little","output":"84.png"},{"index":85,"lat":50.44835,"lon":30.4987,"saltOrder":"little","output":"85.png"},{"index":86,"lat":50.4488,"lon":30.498,"saltOrder":"little","output":"86.png"},{"index":87,"lat":50.4488,"lon":30.498,"saltOrder":"little","output":"87.png"},{"index":88,"lat":50.4488,"lon":30.498,"saltOrder":"little","output":"88.png"},{"index":89,"lat":50.44745,"lon":30.4959,"saltOrder":"little","output":"89.png"},{"index":90,"lat":50.4479,"lon":30.4959,"saltOrder":"little","output":"90.png"},{"index":91,"lat":50.4479,"lon":30.4959,"saltOrder":"little","output":"91.png"},{"index":92,"lat":50.44745,"lon":30.4945,"saltOrder":"little","output":"92.png"},{"index":93,"lat":50.447,"lon":30.4945,"saltOrder":"little","output":"93.png"},{"index":94,"lat":50.45375,"lon":30.526,"saltOrder":"little","output":"94.png"},{"index":95,"lat":50.44655,"lon":30.512,"saltOrder":"little","output":"95.png"},{"index":96,"lat":50.44655,"lon":30.512,"saltOrder":"little","output":"96.png"},{"index":97,"lat":50.4524,"lon":30.5267,"saltOrder":"little","output":"97.png"},{"index":98,"lat":50.4524,"lon":30.5267,"saltOrder":"little","output":"98.png"},{"index":99,"lat":50.4524,"lon":30.5267,"saltOrder":"little","output":"99.png"},{"index":100,"lat":50.4371,"lon":30.6457,"saltOrder":"little","output":"100.png"},{"index":101,"lat":50.43755,"lon":30.6464,"saltOrder":"little","output":"101.png"},{"index":102,"lat":50.42045,"lon":30.4861,"saltOrder":"little","output":"102.png"},{"index":103,"lat":50.42135,"lon":30.4826,"saltOrder":"little","output":"103.png"},{"index":104,"lat":50.42135,"lon":30.4826,"saltOrder":"little","output":"104.png"},{"index":105,"lat":50.4236,"lon":30.4742,"saltOrder":"little","output":"105.png"},{"index":106,"lat":50.46455,"lon":30.5162,"saltOrder":"little","output":"106.png"},{"index":107,"lat":50.43935,"lon":30.6128,"saltOrder":"little","output":"107.png"},{"index":108,"lat":50.43935,"lon":30.6128,"saltOrder":"little","output":"108.png"},{"index":109,"lat":50.42945,"lon":30.6184,"saltOrder":"little","output":"109.png"},{"index":110,"lat":50.4299,"lon":30.6184,"saltOrder":"little","output":"110.png"},{"index":111,"lat":50.4389,"lon":30.4854,"saltOrder":"little","output":"111.png"},{"index":112,"lat":50.43845,"lon":30.4861,"saltOrder":"little","output":"112.png"},{"index":113,"lat":50.43485,"lon":30.4539,"saltOrder":"little","output":"113.png"},{"index":114,"lat":50.519,"lon":30.6079,"saltOrder":"little","output":"114.png"}];
 
     const els = {
       status: document.getElementById('status'),
@@ -742,26 +744,17 @@
 
     async function loadDefaultMatches(options = {}) {
       const silent = Boolean(options.silent);
-      try {
-        const res = await fetch('./matches.tsv', { cache: 'no-store' });
-        if (!res.ok) {
-          if (!silent) {
-            setStatus(`Could not load matches.tsv (HTTP ${res.status}).`, true);
-          }
-          setMatchesStatus(`Could not load ./matches.tsv (HTTP ${res.status}).`, true);
-          applyMatches([]);
-          return;
-        }
-        const tsv = await res.text();
-        applyMatches(parseMatchesTSV(tsv));
-        setMatchesStatus(`Loaded ${state.matches.length} code location(s) from ./matches.tsv.`);
-      } catch (err) {
+      if (!Array.isArray(EMBEDDED_MATCHES) || EMBEDDED_MATCHES.length === 0) {
         if (!silent) {
-          setStatus(`Could not load matches.tsv: ${err.message}`, true);
+          setStatus('No embedded matches in this build.', true);
         }
-        setMatchesStatus(`Could not load ./matches.tsv: ${err.message}`, true);
+        setMatchesStatus('No embedded matches in this build.', true);
         applyMatches([]);
+        return;
       }
+
+      applyMatches(EMBEDDED_MATCHES);
+      setMatchesStatus(`Loaded ${state.matches.length} embedded code location(s).`);
     }
 
     async function loadDefaultProgress(options = {}) {
